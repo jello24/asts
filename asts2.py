@@ -18,7 +18,18 @@
 # Now it will pass the first station, and gets dropped by the second station. That station returns a ICMP message and we print the info.. 
 # This continues until we have reached a certain TTL (normally, 30) or until we have reached our final destination.
 
-a = 0
+from socket import *
 
-for a in range(0, 10):
-    print(a)
+destName = 'hostname' # Set the destination host name here (ie. google.ca or server IP addr)
+destPort = 80
+
+clientSocket = socket(AF_INET, SOCK_DGRAM) # Set network to IPv4 and UDP socket
+
+message = raw_input('Input lowercase sentence: ')
+clientSocket.sendto(message.encode(), (destName, destPort))
+
+modifiedMessage, serverAddress = clientSocket.recvfrom(2048)
+
+print(modifiedMessage.decode())
+
+clientSocket.close
