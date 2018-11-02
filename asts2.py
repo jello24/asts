@@ -8,28 +8,55 @@
 #    If the RTT cannot be calculated within 4 s, display an *
 # 3) It displays a terminating message when max number of 30 hops is reached
 # References used:
-#    https://adayinthelifeof.nl/2010/07/30/creating-a-traceroute-program-in-php/
-# Algorithm: 
-# What traceroute does, it take advantage of this TTL field. 
-# It sends a packet to a certain destination (the site you want to traceroute to), with a TTL of 1. 
-# This means, the packet gets dropped by the first station it passes and returns a ICMP message. 
-# We fetch this message, find out who send it (namely, the first station), we figure out how long the roundtrip took (time from send until receiving the ICMP message) 
-# and print this on the screen. After this we increase the TTL to 2, and send out the packet again. 
-# Now it will pass the first station, and gets dropped by the second station. That station returns a ICMP message and we print the info.. 
-# This continues until we have reached a certain TTL (normally, 30) or until we have reached our final destination.
+#   https://adayinthelifeof.nl/2010/07/30/creating-a-traceroute-program-in-php/
+#   https://web.archive.org/web/20160625004717/https://blogs.oracle.com/ksplice/entry/learning_by_doing_writing_your
 
+import sys
 from socket import *
+import random
 
-destName = 'hostname' # Set the destination host name here (ie. google.ca or server IP addr)
-destPort = 80
+hostname = sys.argv[1] # Get the host name from the argument list (python myTraceRoute.py google.ca)
+print("Start Trace")
 
-clientSocket = socket(AF_INET, SOCK_DGRAM) # Set network to IPv4 and UDP socket
+destAddr = gethostbyname(hostname) # Find the host address and turn it into IP
+destPort = 33434
 
-message = raw_input('Input lowercase sentence: ')
-clientSocket.sendto(message.encode(), (destName, destPort))
+print("Traceroute for: " + hostname + " at IP: " + destAddr + ":" + str(destPort))
 
-modifiedMessage, serverAddress = clientSocket.recvfrom(2048)
+# Get protocol constants for socket creation
+icmp = getprotobyname('icmp') # Received packets are ICMP messages
+udp = getprotobyname('udp') # Sent packets are UDP packets
 
-print(modifiedMessage.decode())
+max_hops = 31 # Set max hops to 30
 
-clientSocket.close
+for ttl in range(1, max_hops):
+    # Create the connection
+    sendSocket = socket(AF_INET, SOCK_DGRAM, udp)
+    recvSocket = socket(AF_INET, SOCK_RAW, icmp)
+    print("Socket created!\n")
+
+    # Put a TTL field into the send socket, incremented in the for loop
+    print(ttl)
+    sendSocket.setsockopt(SOL_IP, IP_TTL, ttl) 
+
+    # Set the receiver socket to listen for data from any host at the traceroute port
+    recvSocket.bind(('', destPort))
+    print("Receive socket bound")
+
+    # Set the sender socket to send an empty string to the destination address at traceroute port
+    sendSocket.sendto(b"", (destAddr, destPort))
+    print("Sent empty data...")
+
+    # Receive the address of the socket sending the data
+
+    try:
+        print("Trying...")
+        recvData, recvAddr = recvSocket.recvfrom(512)
+        recvHost = gethostbyaddr(recvAddr)[0]
+
+    except socket.error:
+        print("Socket Error")
+        pass
+    finally:
+        sendSocket.close()
+        recvSocket.close()
